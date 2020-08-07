@@ -7,6 +7,7 @@ const app = express();
 app.use(express.json());
 
 const transactions = [];
+const balance = [{ incomes: 0, outcomes:0, saldo: 0 }];
 
 function logRequests(request, response, next) {
     const { method, url } = request;
@@ -30,28 +31,88 @@ function validaId(request, response, next) {
     next();
 }
 
+function incrementBalance(type, value) {
+    let createdType = type
+    let createdValue = value
+    let createdIncome = 0
+    let createdOutcome = 0
+
+    if(createdType == 'income') {
+        createdIncome += createdValue
+        
+    }
+    if(createdType == 'outcome') {
+        createdOutcome -= createdValue
+    }
+
+    let createdSaldo = createdIncome + createdOutcome
+
+    balance[0].incomes += createdIncome;
+    balance[0].outcomes += createdOutcome;
+    balance[0].saldo += createdSaldo;    
+}
+
+function IdExiste(request, response, next) {
+    const { id } = request.params
+
+    if(transactions.indexOf(isUuid(id))) {
+        console.log(id)
+        console.log('Existe')
+    } 
+    next();   
+
+}
+
 app.use(logRequests);
+app.use(IdExiste);
 app.use("/projects/:id", validaId);
 
-app.post('/projects', (request, response) => { //Cria a transação, to pensando no melhor jeito de fazer 
+app.post('/projects', (request, response) => { //Cria a transação
     const { title, value, type } = request.body;
 
-    const transaction = { id: uuid(), title, value, type };
+    let createdType = type
+    let createdValue = value
+    let createdIncome = 0
+    let createdOutcome = 0
 
-    transactions.push(transaction);
+    if(createdType == 'income') {
+        createdIncome += createdValue
+        
+    }
+    if(createdType == 'outcome') {
+        createdOutcome -= createdValue
+    }
 
-    return response.json(transaction);
+    let createdSaldo = createdIncome + createdOutcome
+
+    balance[0].incomes += createdIncome;
+    balance[0].outcomes += createdOutcome;
+    balance[0].saldo += createdSaldo;
+
+    transactions.push(
+        {
+        id: uuid(),
+        title: title,
+        value: value,
+        type: type,
+        },
+    )
+
+    return response.json(transactions);
 });  
 
 app.get('/projects', (request, response) => { //Lista as transações cadastradas
-    const { title } = request.query;
+    const { title, value, type } = request.query;
 
     const getTransactions = title 
         ? transactions.filter(transaction => 
             transaction.title.toLowerCase().includes(title.toLowerCase()))
         : transactions;    
-
-        return response.json(getTransactions);
+        
+        return response.json({
+            transactions: getTransactions,
+            balance: balance
+        });
 });
 
 app.put('/projects/:id', (request, response) => { //Edita as transações
@@ -72,6 +133,8 @@ app.put('/projects/:id', (request, response) => { //Edita as transações
         value,
         type
     };
+
+    incrementBalance(type, value);
 
     transactions[transactionIndex] = transaction;
 
